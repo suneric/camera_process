@@ -45,7 +45,7 @@ def gstreamer_pipeline (capture_width=1280, capture_height=720, display_width=12
     'videoconvert ! '
     'video/x-raw, format=(string)BGR ! appsink'  % (capture_width,capture_height,framerate,flip_method,display_width,display_height))
 
-def stream(cap,img_pub,info_pub,cvbr,dim):
+def stream(cap,img_pub,info_pub,cvbr,dim,fps):
     max_index = 10
     max_value = 0.0
     last_value = 0.0
@@ -53,7 +53,7 @@ def stream(cap,img_pub,info_pub,cvbr,dim):
     focal_distance = 10
     focus_finished = False
 
-    rate = ropsy.Rate(30)
+    rate = rospy.Rate(fps)
     while not rospy.is_shutdown():
         ret_val, img = cap.read()
         img = cv2.resize(img,dim)
@@ -118,11 +118,8 @@ def start(dim,fps):
     if not cap.isOpened():
         print("Unable to open camera")
     else:
-        stream(cap,img_pub,info_pub,cvbr,dim)
+        stream(cap,img_pub,info_pub,cvbr,dim,fps)
     cap.release()
-
-
-
 
 if __name__ == '__main__':
     dim = (300,300)
