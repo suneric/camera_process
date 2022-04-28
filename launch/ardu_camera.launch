@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="camera_process" type="ac_ros_interface.py" name="arducam_process" output="screen"/>
+</launch>

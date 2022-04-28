@@ -3,6 +3,7 @@ camera process with jetson nano
 
 ## equipment
 - [realsense d435](https://www.intelrealsense.com/depth-camera-d435/)
+- [Arducam IMX219](https://www.arducam.com/product/arducam-imx219-auto-focus-camera-module-drop-in-replacement-for-raspberry-pi-v2-and-nvidia-jetson-nano-camera/)
 
 ## software
 - ubuntu 18.04 for jetson nano
@@ -40,3 +41,13 @@ camera process with jetson nano
 ```
 sudo apt install ros-melodic-realsense2-camera
 ```
+
+
+### arducam
+1. connect and verify
+  ```
+  git clone https://github.com/ArduCAM/Nvidia_jetson.git
+  cd IMX219_AutoFocus
+  python AutoFocus.py
+  ```
+2.
