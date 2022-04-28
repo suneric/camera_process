@@ -6,6 +6,40 @@ from cv_bridge import CvBridge, CvBridgeError
 import math
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
+import argparse
+
+class ACIMX219:
+    def __init__(self):
+        self.bridge=CvBridge()
+        self.color_sub = rospy.Subscriber('/arducam/image', Image, self._color_callback)
+        self.info_sub = rospy.Subscriber('/arducam/cam_info', CameraInfo, self._caminfo_callback)
+        # data
+        self.cv_color = []
+        self.width = 640
+        self.height = 480
+        self.cameraInfoUpdate = False
+
+    def ready(self):
+        return self.cameraInfoUpdate and len(self.cv_color) > 0
+
+    def image_size(self):
+        return self.height, self.width
+
+    def color_image(self):
+        return self.cv_color
+
+    def _caminfo_callback(self,data):
+        if not self.cameraInfoUpdate:
+            self.cameraInfoUpdate = True
+            self.width = data.width
+            self.height = data.height
+
+    def _color_callback(self, data):
+        if self.cameraInfoUpdate:
+            try:
+                self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            except CvBridgeError as e:
+                print(e)
 
 # realsense d435
 class RSD435:
@@ -114,10 +148,23 @@ class RSD435:
             except CvBridgeError as e:
                 print(e)
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--camera', type=str, default="ac", help="either ac for arducam or rs for realsense")
+    return parser.parse_args()
 
 if __name__ == "__main__":
+    args = get_args()
     rospy.init_node("rs_info", anonymous=True, log_level=rospy.INFO)
-    cam = RSD435()
+
+    cam = None
+    if args.camera == "ac":
+        cam = ACIMX219()
+    elif args.camera == "rs":
+        cam = RSD435()
+    else:
+        print("no camera selected")
+
     rospy.sleep(1)
     rate = rospy.Rate(30)
     try:
@@ -125,8 +172,8 @@ if __name__ == "__main__":
             if cam.ready():
                 img = cam.color_image()
                 #img = cam.depth_image()
-                print(img)
-                cv.imshow('realsense d435',img)
+                # print(img)
+                cv.imshow('camera',img)
                 cv.waitKey(1)
             rate.sleep()
     except rospy.ROSInterruptException:

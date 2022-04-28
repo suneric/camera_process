@@ -50,4 +50,19 @@ sudo apt install ros-melodic-realsense2-camera
   cd IMX219_AutoFocus
   python AutoFocus.py
   ```
-2.
+
+
+## ros interface
+make a catkin_ws/src in jetson nano and download this repo
+  ```
+  git clone https://github.com/suneric/camera_process.git
+  roslaunch camera_process ardu_camera.launch
+  roslaunch camera_process rgbd_camera.launch
+  ```
+note: sudo chmod +x all the launch file and script files
+
+## verify ros in a remote computer
+make a catkin_ws/src in your computer and download this repo
+```
+rosrun camera_process cam_ros_process.py
+```

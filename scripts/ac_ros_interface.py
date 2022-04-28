@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # MIT License
 # Copyright (c) 2019 JetsonHacks
 # See license
@@ -5,7 +7,7 @@
 # NVIDIA Jetson Nano Developer Kit using OpenCV
 # Drivers for the camera and OpenCV are included in the base image
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
 import numpy as py
@@ -43,7 +45,7 @@ def gstreamer_pipeline (capture_width=1280, capture_height=720, display_width=12
     'videoconvert ! '
     'video/x-raw, format=(string)BGR ! appsink'  % (capture_width,capture_height,framerate,flip_method,display_width,display_height))
 
-def stream(pub,svbr):
+def stream(cap,img_pub,info_pub,cvbr,dim):
     max_index = 10
     max_value = 0.0
     last_value = 0.0
@@ -54,7 +56,13 @@ def stream(pub,svbr):
     rate = ropsy.Rate(30)
     while not rospy.is_shutdown():
         ret_val, img = cap.read()
-        pub.publish(cvbr.cv2_to_imgmsg(img))
+        img = cv2.resize(img,dim)
+        img_pub.publish(cvbr.cv2_to_imgmsg(img,"bgr8"))
+
+        info = CameraInfo()
+        info.width = dim[0]
+        info.height = dim[1]
+        info_pub.publish(info)
 
         if dec_count < 6 and focal_distance < 1000:
             #Adjust focus
@@ -96,22 +104,27 @@ def stream(pub,svbr):
 
         rate.sleep()
 
-def start():
+def start(dim,fps):
     # init ros node
     rospy.init_node("arducam_imx219", anonymous=True)
-    pub = rospy.Publisher("arducam/image_color", Image, queue_size=10)
+    img_pub = rospy.Publisher("arducam/image", Image, queue_size=10)
+    info_pub = rospy.Publisher("arducam/cam_info", CameraInfo, queue_size=10)
     cvbr = CvBridge()
 
     # start stream
     # To flip the image, modify the flip_method parameter (0 and 2 are the most common)
-    print gstreamer_pipeline(flip_method=0)
-    cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
+    pipe = gstreamer_pipeline(capture_width=dim[0], capture_height=dim[1], display_width=dim[0], display_height=dim[1], framerate=fps, flip_method=0)
+    cap = cv2.VideoCapture(pipe, cv2.CAP_GSTREAMER)
     if not cap.isOpened():
         print("Unable to open camera")
     else:
-        stream(pub,cvbr)
+        stream(cap,img_pub,info_pub,cvbr,dim)
     cap.release()
 
 
+
+
 if __name__ == '__main__':
-    start()
+    dim = (300,300)
+    fps = 60
+    start(dim,fps)
