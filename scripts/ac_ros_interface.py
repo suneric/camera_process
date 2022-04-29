@@ -122,6 +122,6 @@ def start(dim,fps):
     cap.release()
 
 if __name__ == '__main__':
-    dim = (300,300)
+    dim = (640,480)
     fps = 60
     start(dim,fps)

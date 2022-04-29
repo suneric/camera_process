@@ -64,5 +64,5 @@ note: sudo chmod +x all the launch file and script files
 ## verify ros in a remote computer
 make a catkin_ws/src in your computer and download this repo
 ```
-rosrun camera_process cam_ros_process.py
+rosrun camera_process cam_ros_test.py --camera [ac|rs]
 ```
