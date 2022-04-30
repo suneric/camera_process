@@ -66,3 +66,28 @@ make a catkin_ws/src in your computer and download this repo
 ```
 rosrun camera_process cam_ros_test.py --camera [ac|rs]
 ```
+
+### setup service
+create a service /etc/systemd/system/camera.service
+```
+[Unit]
+Description="Camera Interface"
+After=multi-user.target network.service
+
+[Service]
+Type=simple
+User=jetson
+Group=jetson
+ExecStart=/home/jetson/catkin_ws/src/camera_process/auto_start.sh
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```
+sudo chmod +x auto_start.sh
+```
+
+```
+sudo systemctl enable camera.service
+```
