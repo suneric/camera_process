@@ -7,6 +7,7 @@ import math
 from sensor_msgs.msg import Image, CameraInfo, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 import argparse
+from ids_detection.msg import DetectionInfo
 
 class ACIMX219:
     def __init__(self):
@@ -54,18 +55,23 @@ class RSD435:
         self.caminfo_sub = rospy.Subscriber('/camera/color/camera_info', CameraInfo, self._caminfo_callback)
         self.depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self._depth_callback)
         self.color_sub = rospy.Subscriber('/camera/color/image_raw', Image, self._color_callback)
+        self.detection_sub = rospy.Subscriber("detection", DetectionInfo, self.detect_cb)
 
         # data
         self.cv_color = []
         self.cv_depth = []
         self.width = 640
         self.height = 480
+        self.detectInfo = None
 
     def ready(self):
         return self.cameraInfoUpdate and len(self.cv_color) > 0 and len(self.cv_depth) > 0
 
     def image_size(self):
         return self.height, self.width
+
+    def detect_cb(self,data):
+        self.detectInfo = data
 
     #### depth info
     # calculate mean distance in a small pixel frame around u,v
@@ -145,6 +151,14 @@ class RSD435:
         if self.cameraInfoUpdate:
             try:
                 self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
+                info = self.detectInfo
+                names = ["door","door handle","human body","electric outlet","socket type B"]
+                if info != None:
+                    label = names[int(info.type)]
+                    l,t,r,b=int(info.l),int(info.t),int(info.r),int(info.b)
+                    cv.rectangle(self.cv_color,(l,t),(r,b),(0,255,0),2)
+                    cv.putText(self.cv_color,label,(l-10,t-10),cv.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),1)
+
             except CvBridgeError as e:
                 print(e)
 
