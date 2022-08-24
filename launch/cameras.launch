@@ -1,4 +1,5 @@
 <launch>
   <include file="$(find camera_process)/launch/ardu_camera.launch"/>
   <include file="$(find camera_process)/launch/rgbd_camera.launch"/>
+  <include file="$(find camera_process)/launch/compress_image.launch"/>
 </launch>

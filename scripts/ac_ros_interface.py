@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # MIT License
 # Copyright (c) 2019 JetsonHacks
@@ -10,8 +10,6 @@ import rospy
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
-import numpy as py
-import os
 
 def focusing(val):
 	value = (val << 4) & 0x3ff0

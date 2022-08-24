@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="camera_process" type="rs_ros_interface.py" name="compression_camera" output="screen"/>
+</launch>

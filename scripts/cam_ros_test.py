@@ -64,14 +64,14 @@ class RSD435:
         self.detection_sub = rospy.Subscriber("detection", DetectionInfo, self.detect_cb)
 
         # data
-        self.cv_color = []
-        self.cv_depth = []
+        self.cv_color = None
+        self.cv_depth = None
         self.width = 640
         self.height = 480
         self.detectInfo = None
 
     def ready(self):
-        return self.cameraInfoUpdate and len(self.cv_color) > 0 and len(self.cv_depth) > 0
+        return self.cameraInfoUpdate and self.cv_color is not None
 
     def image_size(self):
         return self.height, self.width
@@ -110,7 +110,7 @@ class RSD435:
         return depthRaw
 
     def convertCompressedColorToCV2(self, colorComp):
-        rawData = np.fromstring(colorComp.data, np.uint8)
+        rawData = np.frombuffer(colorComp.data, np.uint8)
         return cv.imdecode(rawData, cv.IMREAD_COLOR)
 
     def _depth_callback(self, data):
