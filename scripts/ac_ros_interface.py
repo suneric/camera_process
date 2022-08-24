@@ -110,8 +110,8 @@ def stream(cap,img_pub,info_pub,cvbr,dim,fps):
 def start(dim,fps):
     # init ros node
     rospy.init_node("arducam_imx219", anonymous=True)
-    img_pub = rospy.Publisher("arducam/image", Image, queue_size=10)
-    info_pub = rospy.Publisher("arducam/cam_info", CameraInfo, queue_size=10)
+    img_pub = rospy.Publisher("arducam/image", Image, queue_size=3)
+    info_pub = rospy.Publisher("arducam/cam_info", CameraInfo, queue_size=3)
     cvbr = CvBridge()
 
     # start stream

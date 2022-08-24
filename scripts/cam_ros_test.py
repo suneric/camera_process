@@ -4,7 +4,7 @@ import numpy as np
 import cv2 as cv
 from cv_bridge import CvBridge, CvBridgeError
 import math
-from sensor_msgs.msg import Image, CameraInfo, PointCloud2
+from sensor_msgs.msg import Image, CameraInfo, PointCloud2, CompressedImage
 import sensor_msgs.point_cloud2 as pc2
 import argparse
 from ids_detection.msg import DetectionInfo
@@ -45,7 +45,7 @@ class ACIMX219:
 # realsense d435
 class RSD435:
     # create a image view with a frame size for the ROI
-    def __init__(self):
+    def __init__(self, compressed = False):
         print("create realsense d435 instance...")
         self.bridge=CvBridge()
         # camera information
@@ -53,8 +53,14 @@ class RSD435:
         self.intrinsic = None
         # ros-realsense
         self.caminfo_sub = rospy.Subscriber('/camera/color/camera_info', CameraInfo, self._caminfo_callback)
-        self.depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self._depth_callback)
-        self.color_sub = rospy.Subscriber('/camera/color/image_raw', Image, self._color_callback)
+
+        if compressed:
+            self.depth_sub = rospy.Subscriber('/camera/depth/compressed', CompressedImage, self._depth_callback)
+            self.color_sub = rospy.Subscriber('/camera/color/compressed', CompressedImage, self._color_callback)
+        else:
+            self.depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self._depth_callback)
+            self.color_sub = rospy.Subscriber('/camera/color/image_raw', Image, self._color_callback)
+
         self.detection_sub = rospy.Subscriber("detection", DetectionInfo, self.detect_cb)
 
         # data
@@ -73,60 +79,6 @@ class RSD435:
     def detect_cb(self,data):
         self.detectInfo = data
 
-    #### depth info
-    # calculate mean distance in a small pixel frame around u,v
-    # a non-zero mean value for the pixel with its neighboring pixels
-    def distance(self,u,v,size=3):
-        dist_list=[]
-        for i in range(-size,size):
-            for j in range(-size,size):
-                value = self.cv_depth[v+j,u+i]
-                if value > 0.0:
-                    dist_list.append(value)
-        if not dist_list:
-            return -1
-        else:
-            return np.mean(dist_list)
-
-    #### find 3d point with pixel and depth information
-    def point3d(self,u,v):
-        depth = self.distance(int(u),int(v))
-        if depth < 0:
-            return [-1,-1,-1]
-        # focal length
-        fx = self.intrinsic[0]
-        fy = self.intrinsic[4]
-        # principle point
-        cx = self.intrinsic[2]
-        cy = self.intrinsic[5]
-        # deproject
-        x = (u-cx)/fx
-        y = (v-cy)/fy
-        # scale = 0.001 # for simulation is 1
-        scale = 1
-        point3d = [scale*depth*x,scale*depth*y,scale*depth]
-        return point3d
-
-    ### evaluate normal given a pixel
-    def normal3d(self,u,v):
-        dzdx = (self.distance(u+1,v)-self.distance(u-1,v))/2.0
-        dzdy = (self.distance(u,v+1)-self.distance(u,v-1))/2.0
-        dir = (-dzdx, -dzdy, 1.0)
-        magnitude = math.sqrt(dir[0]**2+dir[1]**2+dir[2]**2)
-        normal = [dir[0]/magnitude,dir[1]/magnitude,dir[2],magnitude]
-        return normal
-
-    def evaluate_distance_and_normal(self, box):
-        l, t, r, b = box[0], box[1], box[2], box[3]
-        us = np.random.randint(l+5,r-5,30)
-        vs = np.random.randint(t+5,b-5,30)
-        pt3ds = [self.point3d(us[i],vs[i]) for i in range(30)]
-        nm3ds = [self.normal3d(us[i],vs[i]) for i in range(30)]
-        pt3d = np.mean(pt3ds,axis=0)
-        nm3d = np.mean(nm3ds,axis=0)
-        # print(pt3d, nm3d)
-        return pt3d, nm3d
-
     #### data
     def depth_image(self):
         return self.cv_depth
@@ -140,17 +92,45 @@ class RSD435:
             self.height = data.height
             self.cameraInfoUpdate = True
 
+    def convertCompressedDepthToCV2(self, depthComp):
+        fmt, type = depthComp.format.split(';')
+        fmt = fmt.strip() # remove white space
+        type = type.strip() # remove white space
+        if type != "compressDepth":
+            raise Exception("Compression type is not 'compressDepth'.")
+
+        if 'PNG' in depthComp.data[:12]:
+            headSize = 0
+        else:
+            headSize = 12
+        rawData = depthComp.data[headSize:]
+        depthRaw = cv.imdecode(np.frombuffer(rawData, np.uint8),-1)
+        if depthRaw is None:
+            raise Exception("Could not decode compressed depth image.")
+        return depthRaw
+
+    def convertCompressedColorToCV2(self, colorComp):
+        rawData = np.fromstring(colorComp.data, np.uint8)
+        return cv.imdecode(rawData, cv.IMREAD_COLOR)
+
     def _depth_callback(self, data):
         if self.cameraInfoUpdate:
             try:
-                self.cv_depth = self.bridge.imgmsg_to_cv2(data, data.encoding) #"16UC1"
+                if data._type == 'sensor_msgs/CompressedImage':
+                    self.cv_depth = self.convertCompressedDepthToCV2(data)
+                else:
+                    self.cv_depth = self.bridge.imgmsg_to_cv2(data, data.encoding) #"16UC1"
             except CvBridgeError as e:
                 print(e)
 
     def _color_callback(self, data):
         if self.cameraInfoUpdate:
             try:
-                self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
+                if data._type == 'sensor_msgs/CompressedImage':
+                    self.cv_color = self.convertCompressedColorToCV2(data)
+                else:
+                    self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
                 info = self.detectInfo
                 names = ["door","door handle","human body","electric outlet","socket type B"]
                 if info != None:
@@ -176,6 +156,8 @@ if __name__ == "__main__":
         cam = ACIMX219()
     elif args.camera == "rs":
         cam = RSD435()
+    elif args.camera == "rsc":
+        cam = RSD435(compressed = True)
     else:
         print("no camera selected")
 
