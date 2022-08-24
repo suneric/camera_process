@@ -56,6 +56,9 @@ def stream(cap,img_pub,info_pub,cvbr,dim,fps):
     rate = rospy.Rate(fps)
     while not rospy.is_shutdown():
         ret_val, img = cap.read()
+		h, w, _ = img.shape
+		c = h/2
+		img = img[0:h,int(w/2)-int(c):int(w/2)+int(c)] # crop image
         img = cv2.resize(img,dim)
         img_pub.publish(cvbr.cv2_to_imgmsg(img,"bgr8"))
 
@@ -113,7 +116,7 @@ def start(dim,fps):
 
     # start stream
     # To flip the image, modify the flip_method parameter (0 and 2 are the most common)
-    pipe = gstreamer_pipeline(capture_width=dim[0], capture_height=dim[1], display_width=dim[0], display_height=dim[1], framerate=fps, flip_method=0)
+    pipe = gstreamer_pipeline(capture_width=3280, capture_height=2464, display_width=3280, display_height=2464, framerate=fps, flip_method=0)
     cap = cv2.VideoCapture(pipe, cv2.CAP_GSTREAMER)
     if not cap.isOpened():
         print("Unable to open camera")
@@ -122,6 +125,6 @@ def start(dim,fps):
     cap.release()
 
 if __name__ == '__main__':
-    dim = (640,480)
+    dim = (64,64)
     fps = 60
     start(dim,fps)
