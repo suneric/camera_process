@@ -10,15 +10,22 @@ import argparse
 from ids_detection.msg import DetectionInfo
 
 class ACIMX219:
-    def __init__(self):
+    def __init__(self, compressed = False):
         self.bridge=CvBridge()
-        self.color_sub = rospy.Subscriber('/arducam/image', Image, self._color_callback)
+        if compressed:
+            self.color_sub = rospy.Subscriber('/arducam/image/compressed', Image, self._color_callback)
+        else:
+            self.color_sub = rospy.Subscriber('/arducam/image', Image, self._color_callback)
         self.info_sub = rospy.Subscriber('/arducam/cam_info', CameraInfo, self._caminfo_callback)
         # data
         self.cv_color = []
         self.width = 640
         self.height = 480
         self.cameraInfoUpdate = False
+
+    def convertCompressedColorToCV2(self, colorComp):
+        rawData = np.frombuffer(colorComp.data, np.uint8)
+        return cv.imdecode(rawData, cv.IMREAD_COLOR)
 
     def ready(self):
         return self.cameraInfoUpdate and len(self.cv_color) > 0
@@ -38,7 +45,10 @@ class ACIMX219:
     def _color_callback(self, data):
         if self.cameraInfoUpdate:
             try:
-                self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
+                if data._type == 'sensor_msgs/CompressedImage':
+                    self.cv_color = self.convertCompressedColorToCV2(data)
+                else:
+                    self.cv_color = self.bridge.imgmsg_to_cv2(data, "bgr8")
             except CvBridgeError as e:
                 print(e)
 
@@ -96,15 +106,10 @@ class RSD435:
         fmt, type = depthComp.format.split(';')
         fmt = fmt.strip() # remove white space
         type = type.strip() # remove white space
-        if type != "compressDepth":
-            raise Exception("Compression type is not 'compressDepth'.")
-
-        if 'PNG' in depthComp.data[:12]:
-            headSize = 0
-        else:
-            headSize = 12
-        rawData = depthComp.data[headSize:]
-        depthRaw = cv.imdecode(np.frombuffer(rawData, np.uint8),-1)
+        print(fmt, type)
+        if type != "compressedDepth":
+            raise Exception("Compression type is not 'compressedDepth'.")
+        depthRaw = cv.imdecode(np.frombuffer(depthComp.data[12:], np.uint8),-1)
         if depthRaw is None:
             raise Exception("Could not decode compressed depth image.")
         return depthRaw
@@ -154,6 +159,8 @@ if __name__ == "__main__":
     cam = None
     if args.camera == "ac":
         cam = ACIMX219()
+    elif args.camera == "acc":
+        cam = ACIMX219(compressed = True)
     elif args.camera == "rs":
         cam = RSD435()
     elif args.camera == "rsc":

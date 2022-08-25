@@ -11,7 +11,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CompressedImage
 import numpy as np
 
-class ImageProcess:
+class RSImageCompressor:
     def __init__(self):
         self.cvbr = CvBridge()
         self.depthSub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self._depth_callback)
@@ -21,23 +21,30 @@ class ImageProcess:
         self.colorComp = None
         self.depthComp = None
 
+    def compress_color_image(self,image):
+        colorCV = self.cvbr.imgmsg_to_cv2(image,"bgr8")
+        compressed = self.cvbr.cv2_to_compressed_imgmsg(colorCV,dst_format="jpg")
+        compressed.header = image.header
+        return compressed
+
+    def compress_depth_image(self,image):
+        image.encoding = "mono16"
+        depthCV = self.cvbr.imgmsg_to_cv2(image,"mono16")
+        compressed = self.cvbr.cv2_to_compressed_imgmsg(depthCV,dst_format="png")
+        compressed.header = image.header
+        compressed.format = '16UC1; compressedDepth'
+        compressed.data = bytearray(b"\x00\x00\x00\x00\x88\x9c\x5c\xaa\x00\x40\x4b\xb7")+compressed.data
+        return compressed
+
     def _color_callback(self,image):
         try:
-            colorCV = self.cvbr.imgmsg_to_cv2(image,"bgr8")
-            compressed = self.cvbr.cv2_to_compressed_imgmsg(colorCV,dst_format="jpg")
-            compressed.header = image.header
-            self.colorComp = compressed
+            self.colorComp = self.compress_color_image(image)
         except CvBridgeError as e:
             print(e)
 
     def _depth_callback(self,image):
         try:
-            depthCV = self.cvbr.imgmsg_to_cv2(image, "mono16")
-            compressed = self.cvbr.cv2_to_compressed_imgmsg(depthCV,dst_format="png")
-            compressed.header = image.header
-            compressed.format = '16UC1; compressedDepth'
-            compressed.data = "\x00\x00\x00\x00\x88\x9c\x5c\xaa\x00\x40\x4b\xb7"+compressed.data
-            self.depthComp = compressed
+            self.depthComp = self.compress_depth_image(image)
         except CvBridgeError as e:
             print(e)
 
@@ -49,9 +56,8 @@ class ImageProcess:
             self.depthPub.publish(self.depthComp)
             self.depthComp = None
 
-
 if __name__ == '__main__':
     rospy.init_node("image_compression", anonymous=True)
-    ip = ImageProcess()
+    ic = RSImageCompressor()
     while not rospy.is_shutdown():
-        ip.compress()
+        ic.compress()
