@@ -13,7 +13,7 @@ class ACIMX219:
     def __init__(self, compressed = False):
         self.bridge=CvBridge()
         if compressed:
-            self.color_sub = rospy.Subscriber('/arducam/image/compressed', Image, self._color_callback)
+            self.color_sub = rospy.Subscriber('/arducam/image/compressed', CompressedImage, self._color_callback)
         else:
             self.color_sub = rospy.Subscriber('/arducam/image', Image, self._color_callback)
         self.info_sub = rospy.Subscriber('/arducam/cam_info', CameraInfo, self._caminfo_callback)
@@ -106,7 +106,6 @@ class RSD435:
         fmt, type = depthComp.format.split(';')
         fmt = fmt.strip() # remove white space
         type = type.strip() # remove white space
-        print(fmt, type)
         if type != "compressedDepth":
             raise Exception("Compression type is not 'compressedDepth'.")
         depthRaw = cv.imdecode(np.frombuffer(depthComp.data[12:], np.uint8),-1)
