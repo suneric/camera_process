@@ -99,6 +99,6 @@ if __name__ == '__main__':
     if not cap.isOpened():
 		print("Unable to open camera")
     else:
-		stream(cap,dim=(640,480),fps=15)
+		stream(cap,dim=(256,256),fps=30)
 
     cap.release()
