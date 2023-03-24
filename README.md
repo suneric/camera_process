@@ -12,9 +12,10 @@ camera process with jetson nano
 
 ## install
 
-### ubuntu on jetson nano
+### ubuntu on jetson
 1. download sd card image from [jetson download center](https://developer.nvidia.com/embedded/downloads#?search=sd%20card%20image)
-  - choose "Jetson Nano Developer Kit SD Card Image, 4.6.1"
+  - choose "Jetson Nano Developer Kit SD Card Image, 4.6.1" for nano
+  - choose "Jetson NX Developer Kit SD Card Image, 4.6.1" for Xavier NX
 2. [flash the image](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit#write) to you sd card with Etcher
 3. setup and first boot your system
 
@@ -37,7 +38,26 @@ camera process with jetson nano
   # varify the installation
   realsense-viewer  
   ```
-2. realsense-ros
+2. [build from source](https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md#building-from-source-using-native-backend)
+  ```
+  wget https://github.com/IntelRealSense/librealsense/archive/refs/tags/v2.50.0.zip
+  unzip v2.50.0.zip
+  cd librealsense-2.50.0
+
+  ./scripts/patch-realsense-ubuntu-L4T.sh  
+
+  sudo apt-get install git libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev -y
+  ./scripts/setup_udev_rules.sh  
+  mkdir build && cd build  
+
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+  export CUDA_HOME=/usr/local/cuda
+  export PATH=$PATH:$CUDA_HOME/bin
+
+  cmake .. -DBUILD_EXAMPLES=true -DCMAKE_BUILD_TYPE=release -DFORCE_RSUSB_BACKEND=true -DBUILD_WITH_CUDA=true && make -j4 && sudo make install
+  ```
+  
+### realsense-ros
 ```
 sudo apt install ros-melodic-realsense2-camera
 ```
@@ -88,7 +108,7 @@ After=multi-user.target network.target network-online.target
 Type=simple
 User=jetson
 Group=jetson
-ExecStart=/home/jetson/catkin_ws/src/camera_process/auto_start.sh
+ExecStart=/home/ubuntu/catkin_ws/src/camera_process/auto_start.sh
 
 [Install]
 WantedBy=multi-user.target
