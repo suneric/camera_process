@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="camera_process" type="rs_ros_interface2.py" name="realsense_process" output="screen"/>
+</launch>

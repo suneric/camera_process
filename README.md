@@ -14,8 +14,8 @@ camera process with jetson nano
 
 ### ubuntu on jetson
 1. download sd card image from [jetson download center](https://developer.nvidia.com/embedded/downloads#?search=sd%20card%20image)
-  - choose "Jetson Nano Developer Kit SD Card Image, 4.6.1" for nano
-  - choose "Jetson NX Developer Kit SD Card Image, 4.6.1" for Xavier NX
+  - choose "Jetson Nano Developer Kit SD Card Image, JetPack 4.6" for nano, L4T 32.6.1, Ubuntu 18.04, Kernal 4.9, CUDA 10.2
+  - choose "Jetson NX Developer Kit SD Card Image, JetPack 4.6" for Xavier NX, L4T 32.6.1, Ubuntu 18.04, Kernal 4.9, CUDA 10.2
 2. [flash the image](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit#write) to you sd card with Etcher
 3. setup and first boot your system
 
@@ -56,7 +56,7 @@ camera process with jetson nano
 
   cmake .. -DBUILD_EXAMPLES=true -DCMAKE_BUILD_TYPE=release -DFORCE_RSUSB_BACKEND=true -DBUILD_WITH_CUDA=true && make -j4 && sudo make install
   ```
-  
+
 ### realsense-ros
 ```
 sudo apt install ros-melodic-realsense2-camera
