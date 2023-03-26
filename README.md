@@ -122,8 +122,22 @@ Type=simple
 User=ubuntu
 Group=ubuntu
 ExecStart=/home/ubuntu/catkin_ws/src/camera_process/auto_start.sh
-Restart=on-failure
-RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+create a service /etc/systemd/system/realsense.service
+```
+[Unit]
+Description="RealSense Interface"
+Wants=network-online.target
+After=multi-user.target network.target network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+ExecStart=/home/ubuntu/catkin_ws/src/camera_process/auto_start_rs.sh
 
 [Install]
 WantedBy=multi-user.target
@@ -131,8 +145,12 @@ WantedBy=multi-user.target
 
 ```
 sudo chmod +x auto_start.sh
+sudo chmod +x auto_start_rs.sh
 ```
 
 ```
 sudo systemctl enable camera.service
+sudo systemctl enable realsense.service
+sudo systemctl start camera.service
+sudo systemctl start realsense.service
 ```
