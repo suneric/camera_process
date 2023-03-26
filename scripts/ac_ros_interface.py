@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import rospy
 import cv2
@@ -24,24 +24,21 @@ def laplacian(img):
 	return cv2.mean(img_sobel)[0]
 
 def publish_image(image,imgPub,infoPub,compressPub,cvbr,dim):
-	tw,th = dim[0],dim[1]
+	dsize=None
 	h,w,_ = image.shape
-	wscale = tw/w
-	hscale = th/h
-	s = wscale
-	if hscale < wscale:
-		s = hscale
-	dsize = (int(s*w),int(s*h))
-	img = cv2.resize(image,dsize) # resize
-	cx,cy = img.shape[1]/2,img.shape[0]/2
-	img = img[int(cy-th/2):int(cy+th/2),int(cx-tw/2):int(cx+tw/2)] # crop image
+	rh,rw = h/dim[0],h/dim[1]
+	if rh <= rw:
+		dsize = (h, int(rh*dim[1]))
+	else:
+		dsize = (int(rw*dim[0]), w)
+	croped = image[int((h-dsize[0])/2):int((h+dsize[0])/2),int((w-dsize[1])/2):int((w+dsize[1])/2)]
+	img = cv2.resize(croped,dsize,interpolation=cv2.INTER_AREA) # resize
 	imgPub.publish(cvbr.cv2_to_imgmsg(img,"bgr8"))
 	compressPub.publish(cvbr.cv2_to_compressed_imgmsg(img))
 	info = CameraInfo()
 	info.width = dim[0]
 	info.height = dim[1]
 	infoPub.publish(info)
-
 
 # gstreamer_pipeline returns a GStreamer pipeline for capturing from the CSI camera
 # Defaults to 1280x720 @ 60fps
@@ -72,7 +69,7 @@ def stream(cap,dim,fps):
     rate = rospy.Rate(fps)
     while not rospy.is_shutdown():
         ret_val, img = cap.read()
-		publish_image(img,imgPub,infoPub,compressPub,cvbr,dim)
+        publish_image(img,imgPub,infoPub,compressPub,cvbr,dim)
         if dec_count < 6 and focal_distance < 1000:
             focusing(focal_distance) #Adjust focus
             val = laplacian(img) #Take image and calculate image clarity
@@ -97,8 +94,8 @@ if __name__ == '__main__':
     pipe = gstreamer_pipeline()
     cap = cv2.VideoCapture(pipe, cv2.CAP_GSTREAMER)
     if not cap.isOpened():
-		print("Unable to open camera")
+        print("Unable to open camera")
     else:
-		stream(cap,dim=(256,256),fps=30)
+        stream(cap,dim=(500,500),fps=30)
 
     cap.release()

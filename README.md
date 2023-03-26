@@ -6,7 +6,7 @@ camera process with jetson nano
 - [Arducam IMX219](https://www.arducam.com/product/arducam-imx219-auto-focus-camera-module-drop-in-replacement-for-raspberry-pi-v2-and-nvidia-jetson-nano-camera/)
 
 ## software
-- ubuntu 18.04 for jetson nano
+- ubuntu 18.04 for jetson nano or jetson xviear nx
 - ROS melodic
 
 
@@ -122,6 +122,8 @@ Type=simple
 User=ubuntu
 Group=ubuntu
 ExecStart=/home/ubuntu/catkin_ws/src/camera_process/auto_start.sh
+Restart=on-failure
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target

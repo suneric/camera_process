@@ -47,20 +47,21 @@ def stream(profile, width=640, height=480):
     colorCompPub = rospy.Publisher("camera/color/compressed", CompressedImage, queue_size=1)
     depthCompPub = rospy.Publisher("camera/depth/compressed", CompressedImage, queue_size=1)
     cvBridge = CvBridge()
-    intr = profile.as_video_stream_profile().get_intrinsics()
     depth_sensor = profile.get_device().first_depth_sensor()
     depth_scale = depth_sensor.get_depth_scale()
     print("Depth Scale is:", depth_scale)
     align = rs.align(rs.stream.color) # align depth frame to color frame
+    color = profile.get_stream(rs.stream.color)
+    intr = color.as_video_stream_profile().get_intrinsics()
     try:
         while not rospy.is_shutdown():
             info = CameraInfo()
             info.width = intr.width
             info.height = intr.height
-            info.distortion_model = intr.model
             info.D = intr.coeffs
-            info.K = [intr.fx,0,intr.ppx,0,intr.fy,intr.ppy,0,0,1]
-            info.P = [intr.fx,0,intr.ppx,0,0,intr.fy,intr.ppy,0,0,0,0,1,0]
+            info.K = [intr.fx,0,intr.ppx,0,intr.fy,intr.ppy,0,0,1.0]
+            info.P = [intr.fx,0,intr.ppx,0,0,intr.fy,intr.ppy,0,0,0,1.0,0]
+            info.R = [1.0,0,0,0,1.0,0,0,0,1.0]
             infoPub.publish(info)
             frames = pipeline.wait_for_frames()
             aligned_frames = align.process(frames)
@@ -70,11 +71,11 @@ def stream(profile, width=640, height=480):
 
 if __name__ == '__main__':
     rospy.init_node("realsese_d435", anonymous=True)
-    width,height = 640,480
+    width,height,frame_rate = 640,480,30
     pipeline = rs.pipeline()
     config = rs.config()
-    config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, 30)
-    config.enable_stream(rs.stream.depth, width, height, rs.format.z16, 30)
+    config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, frame_rate)
+    config.enable_stream(rs.stream.depth, width, height, rs.format.z16, frame_rate)
     profile = pipeline.start(config)
     if len(profile.get_device().sensors) == 0:
         print("Unable to open camera.")
