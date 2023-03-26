@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 """
 republish image with compressed
@@ -13,47 +13,40 @@ from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 import numpy as np
 import pyrealsense2 as rs
 
-def publish_images(align, colorPub, depthPub, colorCompPub, depthCompPub):
+def publish_images(align, cvBridge, colorPub, depthPub, colorCompPub, depthCompPub):
     depthFrame = align.get_depth_frame()
     colorFrame = align.get_color_frame()
     if not depthFrame or not colorFrame:
         return
-
-    depthImg = np.asanyarray(depthFrame.get_data())
-    colorImg = np.asanyarray(colorFrame.get_data())
-    colorPub.publish(colorImg)
-    depthPub.publish(depthImg)
-
+        
     try:
-        colorCV = CvBridge().imgmsg_to_cv2(colorImg,"bgr8")
-        colorComp = CvBridge().cv2_to_compressed_imgmsg(colorCV,dst_format="jpg")
-        colorComp.header = colorImg.header
-
-        depthImg.encoding = "mono16"
-        depthCV = CvBridge().imgmsg_to_cv2(depthImg,"mono16")
-        depthComp = CvBridge().cv2_to_compressed_imgmsg(depthCV,dst_format="png")
-        depthComp.header = depthImg.header
-        depthComp.format = '16UC1; compressedDepth'
-        depthComp.data = bytearray(b"\x00\x00\x00\x00\x88\x9c\x5c\xaa\x00\x40\x4b\xb7")+depthComp.data
-
-        if colorComp and depthComp:
-            colorCompPub.publish(colorComp)
-            depthCompPub.publish(depthComp)
-
+        colorArr = np.asanyarray(colorFrame.get_data())
+        depthArr = np.asanyarray(depthFrame.get_data())
+        colorImg = cvBridge.cv2_to_imgmsg(colorArr, encoding='bgr8')
+        depthImg = cvBridge.cv2_to_imgmsg(depthArr, encoding='mono16')
+        colorCompImg = cvBridge.cv2_to_compressed_imgmsg(colorArr, dst_format='jpg')
+        depthCompImg = cvBridge.cv2_to_compressed_imgmsg(depthArr, dst_format='png')
+        depthCompImg.format='16UC1; compressedDepth'
+        depthCompImg.data = bytearray(b"\x00\x00\x00\x00\x88\x9c\x5c\xaa\x00\x40\x4b\xb7")+depthCompImg.data
+        stamp = rospy.Time.now()
+        colorImg.header.stamp = stamp
+        depthImg.header.stamp = stamp
+        colorCompImg.header.stamp = stamp
+        depthCompImg.header.stamp = stamp
+        colorPub.publish(colorImg)
+        depthPub.publish(depthImg)
+        colorCompPub.publish(colorComp)
+        depthCompPub.publish(depthComp)
     except CvBridgeError as e:
         print(e)
 
-def stream(pipeline, width=640, height=480):
+def stream(profile, width=640, height=480):
     infoPub = rospy.Publisher("camera/color/camera_info", CameraInfo, queue_size=1)
     colorPub = rospy.Publisher("camera/color/image_raw", Image, queue_size=1)
     depthPub = rospy.Publisher("camera/depth/image_rect_raw", Image, queue_size=1)
     colorCompPub = rospy.Publisher("camera/color/compressed", CompressedImage, queue_size=1)
     depthCompPub = rospy.Publisher("camera/depth/compressed", CompressedImage, queue_size=1)
-
-    config = rs.config()
-    config.enable_stream(rs.stream.depth, width, height, rs.format.z16, 30)
-    config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, 30)
-    profile = pipeline.start(config)
+    cvBridge = CvBridge()
     depth_sensor = profile.get_device().first_depth_sensor()
     depth_scale = depth_sensor.get_depth_scale()
     print("Depth Scale is:", depth_scale)
@@ -61,19 +54,25 @@ def stream(pipeline, width=640, height=480):
     try:
         while not rospy.is_shutdown():
             info = CameraInfo()
-        	info.width = width
-        	info.height = height
+            info.width = width
+            info.height = height
             infoPub.publish(info)
             frames = pipeline.wait_for_frames()
             aligned_frames = align.process(frames)
-            publish_images(aligned_frames,colorPub,depthPub,colorCompPub,depthCompPub)
-    finally:
-        pipeline.stop()
+            publish_images(aligned_frames,cvBridge,colorPub,depthPub,colorCompPub,depthCompPub)
+    except rospy.ROSInterruptException:
+        pass
 
 if __name__ == '__main__':
     rospy.init_node("realsese_d435", anonymous=True)
+    width,height = 640,480
     pipeline = rs.pipeline()
+    config = rs.config()
+    config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, 30)
+    config.enable_stream(rs.stream.depth, width, height, rs.format.z16, 30)
+    profile = pipeline.start(config)
     if len(profile.get_device().sensors) == 0:
-        print("Unable to open camera")
+        print("Unable to open camera.")
     else:
-        stream(pipeline)
+        stream(profile, width, height)
+    pipeline.stop()

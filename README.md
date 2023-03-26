@@ -39,10 +39,13 @@ camera process with jetson nano
   realsense-viewer  
   ```
 2. [build from source](https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md#building-from-source-using-native-backend)
+  build librealsense2 and pyrealsense2 (-DBUILD_PYTHON_BINDINGS:bool=true) for python2.7 (-DPYTHON_EXECUTABLE=/usr/bin/python2.7)
   ```
   wget https://github.com/IntelRealSense/librealsense/archive/refs/tags/v2.50.0.zip
   unzip v2.50.0.zip
   cd librealsense-2.50.0
+
+
 
   ./scripts/patch-realsense-ubuntu-L4T.sh  
 
@@ -54,14 +57,24 @@ camera process with jetson nano
   export CUDA_HOME=/usr/local/cuda
   export PATH=$PATH:$CUDA_HOME/bin
 
-  cmake .. -DBUILD_EXAMPLES=true -DCMAKE_BUILD_TYPE=release -DFORCE_RSUSB_BACKEND=true -DBUILD_WITH_CUDA=true && make -j4 && sudo make install
-  ```
+  cmake .. -DBUILD_EXAMPLES=true -DCMAKE_BUILD_TYPE=release -DFORCE_RSUSB_BACKEND=true -DBUILD_WITH_CUDA=true -DPYTHON_EXECUTABLE=/usr/bin/python2.7 -DBUILD_PYTHON_BINDINGS:bool=true
+  make -j2
+  sudo make install
 
-### realsense-ros
+  echo "export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/pyrealsense2" >> ~/.bashrc
+  source ~/.bashrc
+
+  cd librealsense-2.50.0
+  sudo cp config/99-realsense-libusb.rules /etc/udev/rules.d/
+  sudo udevadm control --reload-rules && udevadm trigger
+
+  ```
+  copy pyrealsense2 to /usr/local/lib/python2.7 if necessary
+
+### realsense-ros, if need to use realsense2-camera
 ```
 sudo apt install ros-melodic-realsense2-camera
 ```
-
 
 ### arducam
 1. connect and verify
@@ -77,7 +90,7 @@ make a catkin_ws/src in jetson nano and download this repo
   ```
   git clone https://github.com/suneric/camera_process.git
   roslaunch camera_process ardu_camera.launch
-  roslaunch camera_process rgbd_camera.launch
+  roslaunch camera_process realsense_camera.launch
   ```
 note: sudo chmod +x all the launch file and script files
 
@@ -106,8 +119,8 @@ After=multi-user.target network.target network-online.target
 
 [Service]
 Type=simple
-User=jetson
-Group=jetson
+User=ubuntu
+Group=ubuntu
 ExecStart=/home/ubuntu/catkin_ws/src/camera_process/auto_start.sh
 
 [Install]
